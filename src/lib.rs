@@ -434,6 +434,9 @@ impl G2 {
     }
 
     pub fn set_str(&mut self, s: &str) {
+        INIT.call_once(|| {
+            init_library();
+        });
         unsafe { mclBnG2_setStr(self, s.as_ptr(), s.len(), 10) };
     }
 }
