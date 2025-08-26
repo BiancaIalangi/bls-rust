@@ -5,9 +5,9 @@ use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion
 
 const MSG_SIZE: usize = 32;
 
-fn make_multi_sig(n: usize, msg_size: usize) -> (Vec<PublicKey>, Vec<Signature>, Vec<u8>) {
-    let mut pubs: Vec<PublicKey> = Vec::new();
-    let mut sigs: Vec<Signature> = Vec::new();
+fn make_multi_sig(n: usize, msg_size: usize) -> (Vec<G1>, Vec<G2>, Vec<u8>) {
+    let mut pubs: Vec<G1> = Vec::new();
+    let mut sigs: Vec<G2> = Vec::new();
     let mut msgs: Vec<u8> = Vec::new();
     msgs.resize_with(n * msg_size, Default::default);
     for i in 0..n {
@@ -21,7 +21,7 @@ fn make_multi_sig(n: usize, msg_size: usize) -> (Vec<PublicKey>, Vec<Signature>,
     (pubs, sigs, msgs)
 }
 
-pub fn naieve_multi_verify(sigs: &[Signature], pubs: &[PublicKey], msgs: &[u8]) -> bool {
+pub fn naieve_multi_verify(sigs: &[G2], pubs: &[G1], msgs: &[u8]) -> bool {
     let n = sigs.len();
     if n == 0 {
         return false;

@@ -1,39 +1,37 @@
 //! bls-eth-rust is a library to support BLS signature for Ethereum 2.0 Phase 0
 
-//use std::mem::MaybeUninit;
 use rand::prelude::*;
 use std::collections::HashSet;
 use std::os::raw::c_int;
 use std::sync::Once;
 
-#[link(name = "bls384_256", kind = "static")]
+#[repr(C)]
+pub struct mclBnG2 {
+    d: [u64; 12], // internal representation (Herumi uses 12*64 bits for G2)
+}
+
 #[allow(non_snake_case)]
 extern "C" {
     // global functions
-    fn blsInit(curve: c_int, compiledTimeVar: c_int) -> c_int;
-    fn blsSetETHmode(mode: c_int) -> c_int;
+    pub fn blsInit(curve: c_int, compiledTimeVar: c_int) -> c_int;
 
-    fn mclBn_getFrByteSize() -> u32;
-    fn mclBn_getFpByteSize() -> u32;
+    pub fn mclBn_getFrByteSize() -> u32;
+    pub fn mclBn_getFpByteSize() -> u32;
+    pub fn mclBnG2_setStr(x: *mut G2, buf: *const u8, bufSize: usize, ioMode: c_int) -> c_int;
 
-    fn blsSecretKeySetByCSPRNG(x: *mut SecretKey);
-    fn blsSecretKeySetHexStr(x: *mut SecretKey, buf: *const u8, bufSize: usize) -> c_int;
-    fn blsGetPublicKey(y: *mut PublicKey, x: *const SecretKey);
-    fn blsSignatureVerifyOrder(doVerify: c_int);
-    fn blsSignatureIsValidOrder(sig: *const Signature) -> c_int;
-    fn blsPublicKeyVerifyOrder(doVerify: c_int);
-    fn blsPublicKeyIsValidOrder(pug: *const PublicKey) -> c_int;
+    pub fn blsSecretKeySetByCSPRNG(x: *mut SecretKey);
+    pub fn blsSecretKeySetHexStr(x: *mut SecretKey, buf: *const u8, bufSize: usize) -> c_int;
+    pub fn blsGetPublicKey(y: *mut G1, x: *const SecretKey);
+    pub fn blsSignatureVerifyOrder(doVerify: c_int);
+    pub fn blsSignatureIsValidOrder(sig: *const G2) -> c_int;
+    pub fn blsPublicKeyVerifyOrder(doVerify: c_int);
+    pub fn blsPublicKeyIsValidOrder(pug: *const G1) -> c_int;
 
     // for new eth2.0 spec
-    fn blsSign(sig: *mut Signature, seckey: *const SecretKey, msg: *const u8, msgSize: usize);
-    fn blsVerify(
-        sig: *const Signature,
-        pubkey: *const PublicKey,
-        msg: *const u8,
-        msgSize: usize,
-    ) -> c_int;
+    pub fn blsSign(sig: *mut G2, seckey: *const SecretKey, msg: *const u8, msgSize: usize);
+    pub fn blsVerify(sig: *const G2, pubkey: *const G1, msg: *const u8, msgSize: usize) -> c_int;
     /*
-        fn blsMultiVerify(
+      pub fn blsMultiVerify(
             sig: *const Signature,
             pubkey: *const PublicKey,
             msg: *const u8,
@@ -44,68 +42,56 @@ extern "C" {
             threadN: i32,
         ) -> c_int;
     */
-    fn blsMultiVerifySub(
+    pub fn blsMultiVerifySub(
         e: *mut GT,
-        sig: *mut Signature,
-        sig: *const Signature,
-        pubkey: *const PublicKey,
+        sig: *mut G2,
+        sig: *const G2,
+        pubkey: *const G1,
         msg: *const u8,
         msgSize: usize,
         randVec: *const u64,
         randSize: usize,
         n: usize,
     );
-    fn blsMultiVerifyFinal(e: *const GT, sig: *const Signature) -> c_int;
-    fn blsAggregateSignature(aggSig: *mut Signature, sigVec: *const Signature, n: usize);
-    fn blsFastAggregateVerify(
-        sig: *const Signature,
-        pubVec: *const PublicKey,
+    pub fn blsMultiVerifyFinal(e: *const GT, sig: *const G2) -> c_int;
+    pub fn blsAggregateSignature(aggSig: *mut G2, sigVec: *const G2, n: usize);
+    pub fn blsFastAggregateVerify(
+        sig: *const G2,
+        pubVec: *const G1,
         n: usize,
         msg: *const u8,
         msgSize: usize,
     ) -> c_int;
-    fn blsAggregateVerifyNoCheck(
-        sig: *const Signature,
-        pubVec: *const PublicKey,
+    pub fn blsAggregateVerifyNoCheck(
+        sig: *const G2,
+        pubVec: *const G1,
         msgVec: *const u8,
         msgSize: usize,
         n: usize,
     ) -> c_int;
 
-    fn blsSecretKeyIsEqual(lhs: *const SecretKey, rhs: *const SecretKey) -> i32;
-    fn blsPublicKeyIsEqual(lhs: *const PublicKey, rhs: *const PublicKey) -> i32;
-    fn blsSignatureIsEqual(lhs: *const Signature, rhs: *const Signature) -> i32;
+    pub fn blsSecretKeyIsEqual(lhs: *const SecretKey, rhs: *const SecretKey) -> i32;
+    pub fn blsPublicKeyIsEqual(lhs: *const G1, rhs: *const G1) -> i32;
+    pub fn blsSignatureIsEqual(lhs: *const G2, rhs: *const G2) -> i32;
 
-    fn blsSecretKeySerialize(buf: *mut u8, maxBufSize: usize, x: *const SecretKey) -> usize;
-    fn blsPublicKeySerialize(buf: *mut u8, maxBufSize: usize, x: *const PublicKey) -> usize;
-    fn blsSignatureSerialize(buf: *mut u8, maxBufSize: usize, x: *const Signature) -> usize;
+    pub fn blsSecretKeySerialize(buf: *mut u8, maxBufSize: usize, x: *const SecretKey) -> usize;
+    pub fn blsPublicKeySerialize(buf: *mut u8, maxBufSize: usize, x: *const G1) -> usize;
+    pub fn blsSignatureSerialize(buf: *mut u8, maxBufSize: usize, x: *const G2) -> usize;
 
-    fn blsSecretKeyDeserialize(x: *mut SecretKey, buf: *const u8, bufSize: usize) -> usize;
-    fn blsPublicKeyDeserialize(x: *mut PublicKey, buf: *const u8, bufSize: usize) -> usize;
-    fn blsSignatureDeserialize(x: *mut Signature, buf: *const u8, bufSize: usize) -> usize;
+    pub fn blsSecretKeyDeserialize(x: *mut SecretKey, buf: *const u8, bufSize: usize) -> usize;
+    pub fn blsPublicKeyDeserialize(x: *mut G1, buf: *const u8, bufSize: usize) -> usize;
+    pub fn blsSignatureDeserialize(x: *mut G2, buf: *const u8, bufSize: usize) -> usize;
 
-    fn blsPublicKeyAdd(pubkey: *mut PublicKey, x: *const PublicKey);
-    fn blsSignatureAdd(sig: *mut Signature, x: *const Signature);
-    fn mclBnFr_isZero(x: *const SecretKey) -> i32;
+    pub fn blsPublicKeyAdd(pubkey: *mut G1, x: *const G1);
+    pub fn blsSignatureAdd(sig: *mut G2, x: *const G2);
+    pub fn mclBnFr_isZero(x: *const SecretKey) -> i32;
 
-    fn mclBnGT_mul(z: *mut GT, x: *const GT, y: *const GT);
-    fn mclBnGT_isEqual(lhs: *const GT, rhs: *const GT) -> i32;
+    pub fn mclBnGT_mul(z: *mut GT, x: *const GT, y: *const GT);
+    pub fn mclBnGT_isEqual(lhs: *const GT, rhs: *const GT) -> i32;
 }
 
 enum CurveType {
     BLS12_381 = 5,
-}
-
-/// `EthModeType` is for `set_eth_mode`
-pub enum EthModeType {
-    /// before Ethereum 2.0 Phase 0
-    Old = 0,
-    /// Ethereum 2.0 Phase 0(eth2.0) draft05
-    Draft05 = 1,
-    /// Ethereum 2.0 Phase 0(eth2.0) draft06
-    Draft06 = 2,
-    /// Ethereum 2.0 Phase 0(eth2.0) draft07
-    Draft07 = 3,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -132,9 +118,6 @@ pub const MSG_SIZE: usize = 32;
 static INIT: Once = Once::new();
 fn init_library() {
     init(CurveType::BLS12_381);
-    //#[cfg(feature = "latest")]
-    set_eth_mode(EthModeType::Draft07);
-    //verify_signature_order(true);
 }
 
 /// return true if `size`-byte splitted `msgs` are different each other
@@ -243,13 +226,6 @@ pub fn verify_publickey_order(verify: bool) {
     unsafe { blsPublicKeyVerifyOrder(verify as c_int) }
 }
 
-//#[cfg(feature = "latest")]
-/// change the mode of Ethereum specification
-/// `mode` - mode of spec
-pub fn set_eth_mode(mode: EthModeType) -> bool {
-    unsafe { blsSetETHmode(mode as c_int) == 0 }
-}
-
 /// secret key type
 #[derive(Default, Debug, Clone, Copy)]
 #[repr(C)]
@@ -260,19 +236,19 @@ pub struct SecretKey {
 /// public key type
 #[derive(Default, Debug, Clone, Copy)]
 #[repr(C)]
-pub struct PublicKey {
-    x: [u64; MCLBN_FP_UNIT_SIZE],
-    y: [u64; MCLBN_FP_UNIT_SIZE],
-    z: [u64; MCLBN_FP_UNIT_SIZE],
+pub struct G1 {
+    pub x: [u64; MCLBN_FP_UNIT_SIZE],
+    pub y: [u64; MCLBN_FP_UNIT_SIZE],
+    pub z: [u64; MCLBN_FP_UNIT_SIZE],
 }
 
 /// signature type
 #[derive(Default, Debug, Clone, Copy)]
 #[repr(C)]
-pub struct Signature {
-    x: [u64; MCLBN_FP_UNIT_SIZE * 2],
-    y: [u64; MCLBN_FP_UNIT_SIZE * 2],
-    z: [u64; MCLBN_FP_UNIT_SIZE * 2],
+pub struct G2 {
+    pub x: [u64; MCLBN_FP_UNIT_SIZE * 2],
+    pub y: [u64; MCLBN_FP_UNIT_SIZE * 2],
+    pub z: [u64; MCLBN_FP_UNIT_SIZE * 2],
 }
 
 /// GT type
@@ -293,17 +269,17 @@ serialize_impl![
     blsSecretKeyDeserialize
 ];
 
-common_impl![PublicKey, blsPublicKeyIsEqual];
+common_impl![G1, blsPublicKeyIsEqual];
 serialize_impl![
-    PublicKey,
+    G1,
     mclBn_getFpByteSize(),
     blsPublicKeySerialize,
     blsPublicKeyDeserialize
 ];
 
-common_impl![Signature, blsSignatureIsEqual];
+common_impl![G2, blsSignatureIsEqual];
 serialize_impl![
-    Signature,
+    G2,
     mclBn_getFpByteSize() * 2,
     blsSignatureSerialize,
     blsSignatureDeserialize
@@ -337,11 +313,11 @@ impl SecretKey {
         Err(BlsError::InvalidData)
     }
     /// return the public key corresponding to `self`
-    pub fn get_publickey(&self) -> PublicKey {
+    pub fn get_publickey(&self) -> G1 {
         INIT.call_once(|| {
             init_library();
         });
-        let mut v = unsafe { PublicKey::uninit() };
+        let mut v = unsafe { G1::uninit() };
         unsafe {
             blsGetPublicKey(&mut v, self);
         }
@@ -349,20 +325,20 @@ impl SecretKey {
     }
     /// return the signature of `msg`
     /// * `msg` - message
-    pub fn sign(&self, msg: &[u8]) -> Signature {
+    pub fn sign(&self, msg: &[u8]) -> G2 {
         INIT.call_once(|| {
             init_library();
         });
-        let mut v = unsafe { Signature::uninit() };
+        let mut v = unsafe { G2::uninit() };
         unsafe { blsSign(&mut v, self, msg.as_ptr(), msg.len()) }
         v
     }
 }
 
-impl PublicKey {
+impl G1 {
     /// add `x` to `self`
     /// * `x` - signature to be added
-    pub fn add_assign(&mut self, x: *const PublicKey) {
+    pub fn add_assign(&mut self, x: *const G1) {
         INIT.call_once(|| {
             init_library();
         });
@@ -379,11 +355,11 @@ impl PublicKey {
     }
 }
 
-impl Signature {
+impl G2 {
     /// return true if `self` is valid signature of `msg` for `pubkey`
     /// `pubkey` - public key
     /// `msg` - message
-    pub fn verify(&self, pubkey: *const PublicKey, msg: &[u8]) -> bool {
+    pub fn verify(&self, pubkey: *const G1, msg: &[u8]) -> bool {
         INIT.call_once(|| {
             init_library();
         });
@@ -391,7 +367,7 @@ impl Signature {
     }
     /// add `x` to `self`
     /// * `x` - signature to be added
-    pub fn add_assign(&mut self, x: *const Signature) {
+    pub fn add_assign(&mut self, x: *const G2) {
         INIT.call_once(|| {
             init_library();
         });
@@ -408,7 +384,7 @@ impl Signature {
     }
     /// set the aggregated signature of `sigs`
     /// * `sigs` - signatures to be aggregated
-    pub fn aggregate(&mut self, sigs: &[Signature]) {
+    pub fn aggregate(&mut self, sigs: &[G2]) {
         INIT.call_once(|| {
             init_library();
         });
@@ -419,7 +395,7 @@ impl Signature {
     /// return true if `self` is a valid signature of `msgs` for `pubs`
     /// * `pubs` - array of public key
     /// * `msg` - message
-    pub fn fast_aggregate_verify(&self, pubs: &[PublicKey], msg: &[u8]) -> bool {
+    pub fn fast_aggregate_verify(&self, pubs: &[G1], msg: &[u8]) -> bool {
         INIT.call_once(|| {
             init_library();
         });
@@ -430,7 +406,7 @@ impl Signature {
             blsFastAggregateVerify(self, pubs.as_ptr(), pubs.len(), msg.as_ptr(), msg.len()) == 1
         }
     }
-    fn inner_aggregate_verify(&self, pubs: &[PublicKey], msgs: &[u8], check_message: bool) -> bool {
+    fn inner_aggregate_verify(&self, pubs: &[G1], msgs: &[u8], check_message: bool) -> bool {
         INIT.call_once(|| {
             init_library();
         });
@@ -447,20 +423,24 @@ impl Signature {
     /// * `pubs` - array of public key
     /// * `msgs` - concatenated byte `pubs.len()` array of 32-byte messages
     /// * Note - this function does not call `are_all_msg_different`
-    pub fn aggregate_verify_no_check(&self, pubs: &[PublicKey], msgs: &[u8]) -> bool {
+    pub fn aggregate_verify_no_check(&self, pubs: &[G1], msgs: &[u8]) -> bool {
         self.inner_aggregate_verify(pubs, msgs, false)
     }
     /// return true if `self` is a valid signature of `msgs` for `pubs`
     /// * `pubs` - array of public key
     /// * `msgs` - concatenated byte `pubs.len()` array of 32-byte messages
-    pub fn aggregate_verify(&self, pubs: &[PublicKey], msgs: &[u8]) -> bool {
+    pub fn aggregate_verify(&self, pubs: &[G1], msgs: &[u8]) -> bool {
         self.inner_aggregate_verify(pubs, msgs, true)
+    }
+
+    pub fn set_str(&mut self, s: &str) {
+        unsafe { mclBnG2_setStr(self, s.as_ptr(), s.len(), 10) };
     }
 }
 
 /// return true if all sigs are valid
 /// * `msgs` - concatenated byte `pubs.len()` array of 32-byte messages
-pub fn multi_verify(sigs: &[Signature], pubs: &[PublicKey], msgs: &[u8]) -> bool {
+pub fn multi_verify(sigs: &[G2], pubs: &[G1], msgs: &[u8]) -> bool {
     INIT.call_once(|| {
         init_library();
     });
@@ -476,7 +456,7 @@ pub fn multi_verify(sigs: &[Signature], pubs: &[PublicKey], msgs: &[u8]) -> bool
         rands[i] = rng.gen::<u64>();
     }
     let mut e = unsafe { GT::uninit() };
-    let mut agg_sig = unsafe { Signature::uninit() };
+    let mut agg_sig = unsafe { G2::uninit() };
     const MAX_THREAD_N: usize = 32;
     if thread_n > MAX_THREAD_N {
         thread_n = MAX_THREAD_N;
@@ -484,8 +464,7 @@ pub fn multi_verify(sigs: &[Signature], pubs: &[PublicKey], msgs: &[u8]) -> bool
     const MIN_N: usize = 3;
     if thread_n > 1 && n >= MIN_N {
         let mut et: [GT; MAX_THREAD_N] = unsafe { [GT::uninit(); MAX_THREAD_N] };
-        let mut agg_sigt: [Signature; MAX_THREAD_N] =
-            unsafe { [Signature::uninit(); MAX_THREAD_N] };
+        let mut agg_sigt: [G2; MAX_THREAD_N] = unsafe { [G2::uninit(); MAX_THREAD_N] };
         let block_n = n / MIN_N;
         let q = block_n / thread_n;
         let mut r = block_n % thread_n;

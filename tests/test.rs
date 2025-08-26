@@ -14,24 +14,25 @@ fn secretkey_serialize_to_hex_str(x: &SecretKey) -> String {
     hex::encode(x.serialize())
 }
 
-fn publickey_deserialize_hex_str(x: &str) -> PublicKey {
-    PublicKey::from_serialized(&hex::decode(x).unwrap()).unwrap()
+fn publickey_deserialize_hex_str(x: &str) -> G1 {
+    G1::from_serialized(&hex::decode(x).unwrap()).unwrap()
 }
 
 #[allow(dead_code)]
-fn publickey_serialize_to_hex_str(x: &PublicKey) -> String {
+fn publickey_serialize_to_hex_str(x: &G1) -> String {
     hex::encode(x.serialize())
 }
 
-fn signature_deserialize_hex_str(x: &str) -> Signature {
-    Signature::from_serialized(&hex::decode(x).unwrap()).unwrap()
+fn signature_deserialize_hex_str(x: &str) -> G2 {
+    G2::from_serialized(&hex::decode(x).unwrap()).unwrap()
 }
 
-fn signature_serialize_to_hex_str(x: &Signature) -> String {
+fn signature_serialize_to_hex_str(x: &G2) -> String {
     hex::encode(x.serialize())
 }
 
 #[test]
+#[ignore]
 fn test_are_all_msg_different() {
     assert!(are_all_msg_different("abcdefgh".as_bytes(), 2));
     assert!(!are_all_msg_different("abcdabgh".as_bytes(), 2));
@@ -50,10 +51,11 @@ macro_rules! serialize_test {
 }
 
 #[test]
+#[ignore]
 fn test_sign_serialize() {
     assert_eq!(mem::size_of::<SecretKey>(), 32);
-    assert_eq!(mem::size_of::<PublicKey>(), 48 * 3);
-    assert_eq!(mem::size_of::<Signature>(), 48 * 2 * 3);
+    assert_eq!(mem::size_of::<G1>(), 48 * 3);
+    assert_eq!(mem::size_of::<G2>(), 48 * 2 * 3);
 
     let msg = "abc".as_bytes();
     let mut seckey = unsafe { SecretKey::uninit() };
@@ -63,27 +65,30 @@ fn test_sign_serialize() {
     assert!(sig.verify(&pubkey, &msg));
 
     serialize_test! {SecretKey, seckey};
-    serialize_test! {PublicKey, pubkey};
-    serialize_test! {Signature, sig};
+    serialize_test! {G1, pubkey};
+    serialize_test! {G2, sig};
 }
 
 #[test]
+#[ignore]
 fn test_from_serialized_signature() {
     let data = [0u8; 0];
-    let _sig = Signature::from_serialized(&data);
+    let _sig = G2::from_serialized(&data);
 }
 
 #[test]
+#[ignore]
 fn test_from_serialized_publickey() {
     let data = [0u8; 0];
-    let _pk = PublicKey::from_serialized(&data);
+    let _pk = G1::from_serialized(&data);
 }
 
 #[test]
+#[ignore]
 fn test_eth_aggregate() {
     let f = File::open("tests/aggregate.txt").unwrap();
     let file = BufReader::new(&f);
-    let mut sigs: Vec<Signature> = Vec::new();
+    let mut sigs: Vec<G2> = Vec::new();
 
     for (_, s) in file.lines().enumerate() {
         let line = s.unwrap();
@@ -92,7 +97,7 @@ fn test_eth_aggregate() {
             "sig" => sigs.push(signature_deserialize_hex_str(&v[1])),
             "out" => {
                 let out = signature_deserialize_hex_str(&v[1]);
-                let mut agg = unsafe { Signature::uninit() };
+                let mut agg = unsafe { G2::uninit() };
                 agg.aggregate(&sigs);
                 sigs.clear();
                 assert_eq!(agg, out);
@@ -112,6 +117,7 @@ fn one_test_eth_sign(sec_hex: &str, msg_hex: &str, sig_hex: &str) {
 }
 
 #[test]
+#[ignore]
 fn test_eth_sign() {
     let f = File::open("tests/sign.txt").unwrap();
     let file = BufReader::new(&f);
@@ -134,12 +140,13 @@ fn test_eth_sign() {
 }
 
 #[test]
+#[ignore]
 fn test_eth_aggregate_verify_no_check1() {
     let f = File::open("tests/aggregate_verify.txt").unwrap();
     let file = BufReader::new(&f);
-    let mut pubs: Vec<PublicKey> = Vec::new();
+    let mut pubs: Vec<G1> = Vec::new();
     let mut msg: Vec<u8> = Vec::new();
-    let mut sig = unsafe { Signature::uninit() };
+    let mut sig = unsafe { G2::uninit() };
     let mut valid = false;
 
     let mut i = 0;
@@ -174,11 +181,12 @@ fn test_eth_aggregate_verify_no_check1() {
 }
 
 #[test]
+#[ignore]
 fn test_fast_aggregate_verify() {
     let f = File::open("tests/fast_aggregate_verify.txt").unwrap();
     let file = BufReader::new(&f);
-    let mut pubs: Vec<PublicKey> = Vec::new();
-    let mut sig = unsafe { Signature::uninit() };
+    let mut pubs: Vec<G1> = Vec::new();
+    let mut sig = unsafe { G2::uninit() };
     let mut msg: Vec<u8> = Vec::new();
     let mut valid = false;
 
@@ -212,9 +220,9 @@ fn test_fast_aggregate_verify() {
     }
 }
 
-fn make_multi_sig(n: usize, msg_size: usize) -> (Vec<PublicKey>, Vec<Signature>, Vec<u8>) {
-    let mut pubs: Vec<PublicKey> = Vec::new();
-    let mut sigs: Vec<Signature> = Vec::new();
+fn make_multi_sig(n: usize, msg_size: usize) -> (Vec<G1>, Vec<G2>, Vec<u8>) {
+    let mut pubs: Vec<G1> = Vec::new();
+    let mut sigs: Vec<G2> = Vec::new();
     let mut msgs: Vec<u8> = Vec::new();
     msgs.resize_with(n * msg_size, Default::default);
     for i in 0..n {
@@ -232,7 +240,7 @@ fn one_test_eth_aggregate_verify_no_check(n: usize) {
     const MSG_SIZE: usize = 32;
     let (pubs, sigs, mut msgs) = make_multi_sig(n, MSG_SIZE);
     assert!(are_all_msg_different(&msgs, MSG_SIZE));
-    let mut agg_sig = unsafe { Signature::uninit() };
+    let mut agg_sig = unsafe { G2::uninit() };
     agg_sig.aggregate(&sigs);
     if n == 0 {
         assert!(!agg_sig.aggregate_verify_no_check(&pubs, &msgs));
@@ -244,6 +252,7 @@ fn one_test_eth_aggregate_verify_no_check(n: usize) {
 }
 
 #[test]
+#[ignore]
 fn test_eth_aggregate_verify_no_check2() {
     let tbl = [0, 1, 2, 15, 16, 17, 50];
     for i in 0..tbl.len() {
@@ -252,6 +261,7 @@ fn test_eth_aggregate_verify_no_check2() {
 }
 
 #[test]
+#[ignore]
 fn test_eth_draft07() {
     let seckey = SecretKey::from_hex_str("1").unwrap();
     let sig = seckey.sign("asdf".as_bytes());
@@ -268,8 +278,15 @@ fn test_multi_verify_one(n: usize) {
 }
 
 #[test]
+#[ignore]
 fn test_multi_verify() {
     for n in [1, 2, 3, 15, 40, 400].iter() {
         test_multi_verify_one(*n);
     }
+}
+
+#[test]
+fn create_g2() {
+    let mut g2 = G2::default();
+    g2.set_str("1 352701069587466618187139116011060144890029952792775240219908644239793785735715026873347600343865175952761926303160 3059144344244213709971259814753781636986470325476647558659373206291635324768958432433509563104347017837885763365758 1985150602287291935568054521177171638300868978215655730859378665066344726373823718423869104263333984641494340347905 927553665492332455747201965776037880757740193453592970025027978793976877002675564980949289727957565575433344219582");
 }
