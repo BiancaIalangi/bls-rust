@@ -18,7 +18,7 @@ extern "C" {
     pub fn mclBn_getFrByteSize() -> u32;
     pub fn mclBn_getFpByteSize() -> u32;
     pub fn mclBnG2_setStr(x: *mut G2, buf: *const u8, bufSize: usize, ioMode: c_int) -> c_int;
-    pub fn mclBnG2_deserialize(x: *mut G2, buf: *const u8, bufSize: usize) -> c_int;
+    pub fn mclBnG2_deserialize(x: *mut G2, buf: *const u8, bufSize: usize) -> usize;
 
     pub fn blsSecretKeySetByCSPRNG(x: *mut SecretKey);
     pub fn blsSecretKeySetHexStr(x: *mut SecretKey, buf: *const u8, bufSize: usize) -> c_int;
@@ -108,9 +108,7 @@ pub enum BlsError {
 
 const MCLBN_FP_UNIT_SIZE: usize = 6;
 const MCLBN_FR_UNIT_SIZE: usize = 4;
-const BLS_COMPILER_TIME_VAR_ADJ: usize = 200;
-const MCLBN_COMPILED_TIME_VAR: c_int =
-    (MCLBN_FR_UNIT_SIZE * 10 + MCLBN_FP_UNIT_SIZE + BLS_COMPILER_TIME_VAR_ADJ) as c_int;
+const MCLBN_COMPILED_TIME_VAR: c_int = (MCLBN_FR_UNIT_SIZE * 10 + MCLBN_FP_UNIT_SIZE) as c_int;
 
 /// message is 32 byte in eth2.0
 pub const MSG_SIZE: usize = 32;
@@ -157,7 +155,7 @@ macro_rules! common_impl {
             }
             /// return uninitialized instance
             pub unsafe fn uninit() -> $t {
-                std::mem::MaybeUninit::uninit().assume_init()
+                Default::default()
             }
         }
     };
@@ -441,14 +439,12 @@ impl G2 {
         unsafe { mclBnG2_setStr(self, s.as_ptr(), s.len(), 10) };
     }
 
-    pub fn deserialize_g2(&mut self, buf: &[u8]) {
-        // INIT.call_once(|| {
-        // init_library();
-        // });
+    pub fn deserialize_g2(&mut self, buf: &[u8]) -> bool {
+        INIT.call_once(|| {
+            init_library();
+        });
         let n = unsafe { mclBnG2_deserialize(self, buf.as_ptr(), buf.len()) };
-        if n == 0 || (n as usize) != buf.len() {
-            panic!("BLS deserialization error");
-        }
+        return n > 0 && n == buf.len();
     }
 }
 
