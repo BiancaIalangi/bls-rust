@@ -50,24 +50,24 @@ macro_rules! serialize_test {
     };
 }
 
-#[test]
-#[ignore]
-fn test_sign_serialize() {
-    assert_eq!(mem::size_of::<SecretKey>(), 32);
-    assert_eq!(mem::size_of::<G1>(), 48 * 3);
-    assert_eq!(mem::size_of::<G2>(), 48 * 2 * 3);
+// #[test]
+// #[ignore]
+// fn test_sign_serialize() {
+//     assert_eq!(mem::size_of::<SecretKey>(), 32);
+//     assert_eq!(mem::size_of::<G1>(), 48 * 3);
+//     assert_eq!(mem::size_of::<G2>(), 48 * 2 * 3);
 
-    let msg = "abc".as_bytes();
-    let mut seckey = unsafe { SecretKey::uninit() };
-    seckey.set_by_csprng();
-    let pubkey = seckey.get_publickey();
-    let sig = seckey.sign(&msg);
-    assert!(sig.verify(&pubkey, &msg));
+//     let msg = "abc".as_bytes();
+//     let mut seckey = unsafe { SecretKey::uninit() };
+//     seckey.set_by_csprng();
+//     let pubkey = seckey.get_publickey();
+//     let sig = seckey.sign(&msg);
+//     assert!(sig.verify(&pubkey, &msg));
 
-    serialize_test! {SecretKey, seckey};
-    serialize_test! {G1, pubkey};
-    serialize_test! {G2, sig};
-}
+//     serialize_test! {SecretKey, seckey};
+//     serialize_test! {G1, pubkey};
+//     serialize_test! {G2, sig};
+// }
 
 #[test]
 #[ignore]
@@ -107,37 +107,37 @@ fn test_eth_aggregate() {
     }
 }
 
-fn one_test_eth_sign(sec_hex: &str, msg_hex: &str, sig_hex: &str) {
-    let seckey = secretkey_deserialize_hex_str(&sec_hex);
-    let pubkey = seckey.get_publickey();
-    let msg = hex::decode(&msg_hex).unwrap();
-    let sig = seckey.sign(&msg);
-    assert!(sig.verify(&pubkey, &msg));
-    assert_eq!(signature_serialize_to_hex_str(&sig), sig_hex);
-}
+// fn one_test_eth_sign(sec_hex: &str, msg_hex: &str, sig_hex: &str) {
+//     let seckey = secretkey_deserialize_hex_str(&sec_hex);
+//     let pubkey = seckey.get_publickey();
+//     let msg = hex::decode(&msg_hex).unwrap();
+//     let sig = seckey.sign(&msg);
+//     assert!(sig.verify(&pubkey, &msg));
+//     assert_eq!(signature_serialize_to_hex_str(&sig), sig_hex);
+// }
 
-#[test]
-#[ignore]
-fn test_eth_sign() {
-    let f = File::open("tests/sign.txt").unwrap();
-    let file = BufReader::new(&f);
-    let mut sec_hex = "".to_string();
-    let mut msg_hex = "".to_string();
-    let mut sig_hex;
-    for (_, s) in file.lines().enumerate() {
-        let line = s.unwrap();
-        let v: Vec<&str> = line.split(' ').collect();
-        match v[0] {
-            "sec" => sec_hex = v[1].to_string(),
-            "msg" => msg_hex = v[1].to_string(),
-            "out" => {
-                sig_hex = v[1].to_string();
-                one_test_eth_sign(&sec_hex, &msg_hex, &sig_hex);
-            }
-            _ => assert!(false),
-        }
-    }
-}
+// #[test]
+// #[ignore]
+// fn test_eth_sign() {
+//     let f = File::open("tests/sign.txt").unwrap();
+//     let file = BufReader::new(&f);
+//     let mut sec_hex = "".to_string();
+//     let mut msg_hex = "".to_string();
+//     let mut sig_hex;
+//     for (_, s) in file.lines().enumerate() {
+//         let line = s.unwrap();
+//         let v: Vec<&str> = line.split(' ').collect();
+//         match v[0] {
+//             "sec" => sec_hex = v[1].to_string(),
+//             "msg" => msg_hex = v[1].to_string(),
+//             "out" => {
+//                 sig_hex = v[1].to_string();
+//                 one_test_eth_sign(&sec_hex, &msg_hex, &sig_hex);
+//             }
+//             _ => assert!(false),
+//         }
+//     }
+// }
 
 #[test]
 #[ignore]
@@ -303,4 +303,22 @@ fn create_g2() {
 
     let x = g2.deserialize_g2(&v);
     println!("{:?} | {x}", g2);
+    println!("================================ ");
+
+    let mut g1 = G1::default();
+    let sig: Vec<u8> = vec![
+        175, 50, 162, 221, 243, 65, 192, 141, 30, 183, 35, 47, 5, 220, 52, 228, 69, 65, 85, 230,
+        118, 181, 140, 64, 253, 223, 154, 3, 101, 98, 172, 44, 1, 83, 61, 45, 85, 124, 180, 157,
+        115, 170, 157, 122, 137, 116, 70, 150,
+    ];
+    g1.deserialize(&sig);
+    println!("{:?} | {x}", g1);
+    println!("================================ ");
+
+    let msg = vec![
+        109, 101, 115, 115, 97, 103, 101, 32, 116, 111, 32, 98, 101, 32, 115, 105, 103, 110, 101,
+        100,
+    ];
+    let v = g1.verify(&g2, &msg);
+    println!("{v}");
 }

@@ -30,7 +30,7 @@ extern "C" {
 
     // for new eth2.0 spec
     pub fn blsSign(sig: *mut G2, seckey: *const SecretKey, msg: *const u8, msgSize: usize);
-    pub fn blsVerify(sig: *const G2, pubkey: *const G1, msg: *const u8, msgSize: usize) -> c_int;
+    pub fn blsVerify(sig: *const G1, pubkey: *const G2, msg: *const u8, msgSize: usize) -> c_int;
     /*
       pub fn blsMultiVerify(
             sig: *const Signature,
@@ -80,8 +80,8 @@ extern "C" {
     pub fn blsSignatureSerialize(buf: *mut u8, maxBufSize: usize, x: *const G2) -> usize;
 
     pub fn blsSecretKeyDeserialize(x: *mut SecretKey, buf: *const u8, bufSize: usize) -> usize;
-    pub fn blsPublicKeyDeserialize(x: *mut G1, buf: *const u8, bufSize: usize) -> usize;
-    pub fn blsSignatureDeserialize(x: *mut G2, buf: *const u8, bufSize: usize) -> usize;
+    pub fn blsPublicKeyDeserialize(x: *mut G2, buf: *const u8, bufSize: usize) -> usize;
+    pub fn blsSignatureDeserialize(x: *mut G1, buf: *const u8, bufSize: usize) -> usize;
 
     pub fn blsPublicKeyAdd(pubkey: *mut G1, x: *const G1);
     pub fn blsSignatureAdd(sig: *mut G2, x: *const G2);
@@ -273,7 +273,7 @@ serialize_impl![
     G1,
     mclBn_getFpByteSize(),
     blsPublicKeySerialize,
-    blsPublicKeyDeserialize
+    blsSignatureDeserialize
 ];
 
 common_impl![G2, blsSignatureIsEqual];
@@ -281,7 +281,7 @@ serialize_impl![
     G2,
     mclBn_getFpByteSize() * 2,
     blsSignatureSerialize,
-    blsSignatureDeserialize
+    blsPublicKeyDeserialize
 ];
 
 impl SecretKey {
@@ -335,6 +335,15 @@ impl SecretKey {
 }
 
 impl G1 {
+    /// return true if `self` is valid signature of `msg` for `pubkey`
+    /// `pubkey` - public key
+    /// `msg` - message
+    pub fn verify(&self, pubkey: *const G2, msg: &[u8]) -> bool {
+        INIT.call_once(|| {
+            init_library();
+        });
+        unsafe { blsVerify(self, pubkey, msg.as_ptr(), msg.len()) == 1 }
+    }
     /// add `x` to `self`
     /// * `x` - signature to be added
     pub fn add_assign(&mut self, x: *const G1) {
@@ -355,15 +364,6 @@ impl G1 {
 }
 
 impl G2 {
-    /// return true if `self` is valid signature of `msg` for `pubkey`
-    /// `pubkey` - public key
-    /// `msg` - message
-    pub fn verify(&self, pubkey: *const G1, msg: &[u8]) -> bool {
-        INIT.call_once(|| {
-            init_library();
-        });
-        unsafe { blsVerify(self, pubkey, msg.as_ptr(), msg.len()) == 1 }
-    }
     /// add `x` to `self`
     /// * `x` - signature to be added
     pub fn add_assign(&mut self, x: *const G2) {
