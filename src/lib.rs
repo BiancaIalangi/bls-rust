@@ -10,6 +10,11 @@ extern "C" {
     pub fn mclBn_getFpByteSize() -> u32;
     pub fn mclBnG2_setStr(x: *mut G2, buf: *const u8, buf_size: usize, io_mode: c_int) -> c_int;
     pub fn mclBnG2_deserialize(x: *mut G2, buf: *const u8, buf_size: usize) -> usize;
+    pub fn mclBnG2_isZero(x: *const G2) -> u8;
+    pub fn mclBnG2_isValid(x: *const G2) -> u8;
+
+    pub fn mclBnG1_isZero(x: *const G1) -> u8;
+    pub fn mclBnG1_isValid(x: *const G1) -> u8;
 
     pub fn blsSecretKeySetByCSPRNG(x: *mut SecretKey);
     pub fn blsSecretKeySetHexStr(x: *mut SecretKey, buf: *const u8, buf_size: usize) -> c_int;
@@ -413,6 +418,28 @@ impl G1 {
     pub fn aggregate_verify(&self, pubs: &[G2], msgs: &[u8]) -> bool {
         self.inner_aggregate_verify(pubs, msgs, true)
     }
+
+    /// Checks if the `G1` element is the point at infinity (zero element).
+    ///
+    /// This function determines whether the `G1` element represented by `self`
+    /// is the zero element, which is the identity element in the group.
+    ///
+    /// # Returns
+    /// `true` if the `G1` element is the zero element, otherwise `false`.
+    pub fn is_zero(&self) -> bool {
+        unsafe { mclBnG1_isZero(self) == 1 }
+    }
+
+    /// Checks if the `G1` element is valid.
+    ///
+    /// This function determines whether the `G1` element represented by `self`
+    /// is valid according to the cryptographic library's requirements.
+    ///
+    /// # Returns
+    /// `true` if the `G1` element is valid, otherwise `false`.
+    pub fn is_valid(&self) -> bool {
+        unsafe { mclBnG1_isValid(self) == 1 }
+    }
 }
 
 impl G2 {
@@ -475,6 +502,28 @@ impl G2 {
         let n = unsafe { mclBnG2_deserialize(self, buf.as_ptr(), buf.len()) };
 
         n > 0 && n == buf.len()
+    }
+
+    /// Checks if the `G2` element is the point at infinity (zero element).
+    ///
+    /// This function determines whether the `G2` element represented by `self`
+    /// is the zero element, which is the identity element in the group.
+    ///
+    /// # Returns
+    /// `true` if the `G2` element is the zero element, otherwise `false`.
+    pub fn is_zero(&self) -> bool {
+        unsafe { mclBnG2_isZero(self) == 1 }
+    }
+
+    /// Checks if the `G2` element is valid.
+    ///
+    /// This function determines whether the `G2` element represented by `self`
+    /// is valid according to the cryptographic library's requirements.
+    ///
+    /// # Returns
+    /// `true` if the `G2` element is valid, otherwise `false`.
+    pub fn is_valid(&self) -> bool {
+        unsafe { mclBnG2_isValid(self) == 1 }
     }
 }
 
