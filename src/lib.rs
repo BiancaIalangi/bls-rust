@@ -3,7 +3,7 @@ use std::os::raw::c_int;
 use std::sync::Once;
 
 // global functions
-extern "C" {
+unsafe extern "C" {
     pub fn blsInit(curve: usize, compiledTimeVar: usize) -> c_int;
 
     pub fn mclBn_getFrByteSize() -> u32;
