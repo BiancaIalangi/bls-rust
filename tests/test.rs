@@ -17,7 +17,7 @@ fn signature_deserialize_hex_str(x: &str) -> G1 {
 }
 
 fn signature_serialize_to_hex_str(x: &G1) -> String {
-    hex::encode(x.serialize())
+    hex::encode(x.serialize().unwrap_or_else(|err| panic!("Error: {}", err)))
 }
 
 #[test]
@@ -28,8 +28,10 @@ fn test_are_all_msg_different() {
 
 macro_rules! serialize_test {
     ($t:ty, $x:expr) => {
-        let buf = $x.serialize();
-        let mut y: $t = <$t>::uninit();
+        let buf = $x
+            .serialize()
+            .unwrap_or_else(|err| panic!("Error: {}", err));
+        let mut y: $t = <$t>::default();
         assert!(y.deserialize(&buf));
         assert_eq!($x, y);
 
@@ -45,7 +47,7 @@ fn test_sign_serialize() {
     assert_eq!(mem::size_of::<G2>(), 48 * 2 * 3);
 
     let msg = "abc".as_bytes();
-    let mut sk = SecretKey::uninit();
+    let mut sk = SecretKey::default();
     sk.set_by_csprng();
     let pk = sk.get_public_key();
     let sig = sk.sign(msg);
@@ -70,7 +72,7 @@ fn test_eth_aggregate() {
             "sig" => sigs.push(signature_deserialize_hex_str(v[1])),
             "out" => {
                 let out = signature_deserialize_hex_str(v[1]);
-                let mut agg = G1::uninit();
+                let mut agg = G1::default();
                 agg.aggregate(&sigs);
                 sigs.clear();
                 assert_eq!(agg, out);
@@ -120,7 +122,7 @@ fn test_eth_aggregate_verify_no_check1() {
     let file = BufReader::new(&f);
     let mut pubs: Vec<G2> = Vec::new();
     let mut msg: Vec<u8> = Vec::new();
-    let mut sig = G1::uninit();
+    let mut sig = G1::default();
     let mut valid = false;
 
     let mut i = 0;
@@ -160,7 +162,7 @@ fn test_fast_aggregate_verify() {
     let f = File::open("tests/fast_aggregate_verify.txt").unwrap();
     let file = BufReader::new(&f);
     let mut pubs: Vec<G2> = Vec::new();
-    let mut sig = G1::uninit();
+    let mut sig = G1::default();
     let mut msg: Vec<u8> = Vec::new();
     let mut valid = false;
 
@@ -200,7 +202,7 @@ fn make_multi_sig(n: usize, msg_size: usize) -> (Vec<G2>, Vec<G1>, Vec<u8>) {
     let mut msgs: Vec<u8> = Vec::new();
     msgs.resize_with(n * msg_size, Default::default);
     for i in 0..n {
-        let mut sec: SecretKey = SecretKey::uninit();
+        let mut sec: SecretKey = SecretKey::default();
         sec.set_by_csprng();
         pubs.push(sec.get_public_key());
         msgs[msg_size * i] = i as u8;
@@ -214,7 +216,7 @@ fn one_test_eth_aggregate_verify_no_check(n: usize) {
     const MSG_SIZE: usize = 32;
     let (pubs, sigs, mut msgs) = make_multi_sig(n, MSG_SIZE);
     assert!(are_all_msg_different(&msgs, MSG_SIZE));
-    let mut agg_sig = G1::uninit();
+    let mut agg_sig = G1::default();
     agg_sig.aggregate(&sigs);
     if n == 0 {
         assert!(!agg_sig.aggregate_verify_no_check(&pubs, &msgs));
