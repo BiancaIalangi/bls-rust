@@ -157,39 +157,32 @@ fn test_eth_aggregate_verify_no_check1() {
 }
 
 #[test]
-#[ignore = "aggregate not implemented"]
 fn test_fast_aggregate_verify() {
     let f = File::open("tests/fast_aggregate_verify.txt").unwrap();
     let file = BufReader::new(&f);
+
     let mut pubs: Vec<G2> = Vec::new();
     let mut sig = G1::default();
     let mut msg: Vec<u8> = Vec::new();
-    let mut valid = false;
 
-    let mut i = 0;
-    for s in file.lines() {
-        let line = s.unwrap();
-        let v: Vec<&str> = line.split(' ').collect();
-        match v[0] {
-            "pub" => pubs.push(public_key_deserialize_hex_str(v[1])),
+    for l in file.lines() {
+        let line = l.unwrap();
+        let elements: Vec<&str> = line.split_whitespace().collect();
+        match elements[0] {
+            "pub" => pubs.push(public_key_deserialize_hex_str(elements[1])),
             "msg" => {
-                let vv = &hex::decode(v[1]).unwrap();
-                msg = vv.clone();
+                msg = elements[1].into();
             }
             "sig" => {
-                valid = sig.deserialize(&hex::decode(v[1]).unwrap());
-                if !valid {
-                    println!("bad signature {:?}", &v[1]);
+                let err = sig.deserialize(&hex::decode(elements[1]).unwrap());
+                if !err {
+                    continue;
                 }
             }
             "out" => {
-                println!("i={:?}", i);
-                if valid {
-                    let out = v[1] == "true";
-                    assert_eq!(sig.fast_aggregate_verify(&pubs, &msg), out);
-                }
+                let out = elements[1] == "true";
+                assert_eq!(sig.fast_aggregate_verify(&pubs, &msg), out);
                 pubs.truncate(0);
-                i += 1;
             }
             _ => (),
         }

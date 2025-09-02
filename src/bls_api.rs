@@ -26,16 +26,15 @@ unsafe extern "C" {
 
     pub fn blsSign(sig: *mut G1, secret_key: *const SecretKey, msg: *const u8, msg_len: usize);
     pub fn blsVerify(sig: *const G1, public_key: *const G2, msg: *const u8, msg_len: usize) -> i32;
-
-    // pub fn blsMultiVerifyFinal(e: *const GT, sig: *const G2) -> i32;
-    pub fn blsAggregateSignature(aggregate_sig: *mut G1, signature_vec: *const G1, n: usize);
     pub fn blsFastAggregateVerify(
         sig: *const G1,
-        public_keys: *const G2,
-        n: usize,
+        public_key: *const G2,
+        public_keys_len: usize,
         msg: *const u8,
         msg_len: usize,
     ) -> i32;
+
+    pub fn blsAggregateSignature(aggregate_sig: *mut G1, signature_vec: *const G1, n: usize);
     pub fn blsAggregateVerifyNoCheck(
         sig: *const G1,
         public_keys: *const G2,

@@ -29,6 +29,26 @@ impl G1 {
         unsafe { blsVerify(self, &public_key, msg.as_ptr(), msg.len()) == 1 }
     }
 
+    /// return true if `self` is a valid signature of `msg` for `public keys`
+    /// * `public_keys` - array of public key
+    /// * `msg` - message
+    pub fn fast_aggregate_verify(&self, public_keys: &[G2], msg: &[u8]) -> bool {
+        INIT.call_once(init_library);
+        if public_keys.is_empty() {
+            return false;
+        }
+
+        unsafe {
+            blsFastAggregateVerify(
+                self,
+                public_keys.as_ptr(),
+                public_keys.len(),
+                msg.as_ptr(),
+                msg.len(),
+            ) == 1
+        }
+    }
+
     /// add a signature to `self`
     pub fn add_assign(&mut self, signature: G1) {
         INIT.call_once(init_library);
@@ -49,19 +69,6 @@ impl G1 {
         INIT.call_once(init_library);
         unsafe {
             blsAggregateSignature(self, sigs.as_ptr(), sigs.len());
-        }
-    }
-
-    /// return true if `self` is a valid signature of `msgs` for `pubs`
-    /// * `pubs` - array of public key
-    /// * `msg` - message
-    pub fn fast_aggregate_verify(&self, pubs: &[G2], msg: &[u8]) -> bool {
-        INIT.call_once(init_library);
-        if pubs.is_empty() {
-            return false;
-        }
-        unsafe {
-            blsFastAggregateVerify(self, pubs.as_ptr(), pubs.len(), msg.as_ptr(), msg.len()) == 1
         }
     }
 
@@ -125,6 +132,7 @@ impl G1 {
     pub fn deserialize(&mut self, buf: &[u8]) -> bool {
         INIT.call_once(init_library);
         let n = unsafe { blsSignatureDeserialize(self, buf.as_ptr(), buf.len()) };
+
         n > 0 && n == buf.len()
     }
 
